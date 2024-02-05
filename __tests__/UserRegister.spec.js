@@ -4,6 +4,7 @@ const nodemailerStub = require('nodemailer-stub');
 const app = require('../src/app');
 const User = require('../src/user/User');
 const sequelize = require('../src/config/database');
+const EmailService = require('../src/email/EmailService');
 
 beforeAll(() => {
   return sequelize.sync();
@@ -236,6 +237,34 @@ describe('User registration', () => {
     const savedUser = users[0];
     expect(lastMail.content).toContain(savedUser.activationToken);
   });
+
+  it('returns 502 Bad Gateway when sending email fails', async () => {
+    const mockSendAccountActivation = jest
+      .spyOn(EmailService, 'sendAccountActivation')
+      .mockRejectedValue({ message: 'Failed to deliver email.' });
+    const response = await postUser();
+    expect(response.status).toBe(502);
+    mockSendAccountActivation.mockRestore();
+  });
+
+  it('returns email failure message when sending email fails', async () => {
+    const mockSendAccountActivation = jest
+      .spyOn(EmailService, 'sendAccountActivation')
+      .mockRejectedValue({ message: 'Failed to deliver email.' });
+    const response = await postUser();
+    mockSendAccountActivation.mockRestore();
+    expect(response.body.message).toBe('E-mail Failure.');
+  });
+
+  it('doe snot save user to database if activation email fails', async () => {
+    const mockSendAccountActivation = jest
+      .spyOn(EmailService, 'sendAccountActivation')
+      .mockRejectedValue({ message: 'Failed to deliver email.' });
+    const response = await postUser();
+    mockSendAccountActivation.mockRestore();
+    const users = await User.findAll();
+    expect(users.length).toBe(0);
+  });
 });
 
 describe('Internationalization', () => {
@@ -248,6 +277,7 @@ describe('Internationalization', () => {
   const password_pattern = 'La contraseña debe tener al menos 1 letra mayuscula, 1 letra minuscula y 1 numero.';
   const email_inuse = 'El email esta en uso.';
   const user_create_success = 'Usuario creado.';
+  const email_failure = 'El email fallo.';
 
   it.each`
     field         | value               | expectedMessage
@@ -288,4 +318,43 @@ describe('Internationalization', () => {
     const response = await postUser({ ...validUser }, { language: 'es' });
     expect(response.body.message).toBe(user_create_success);
   });
+
+  it(`returns ${email_failure} message when sending email fails and language is set as Spanish`, async () => {
+    const mockSendAccountActivation = jest
+      .spyOn(EmailService, 'sendAccountActivation')
+      .mockRejectedValue({ message: 'Failed to deliver email.' });
+    const response = await postUser({ ...validUser }, { language: 'es' });
+    mockSendAccountActivation.mockRestore();
+    expect(response.body.message).toBe(email_failure);
+  });
 });
+
+// const { DataTypes } = require('sequelize');
+// module.exports = (sequelize) => {
+//   const advanceMonthlyTrainingAlerts = sequelize.define('advanceMonthlyTrainingAlerts', {
+//     idAdvanceMonthlyTrainingAlert: {
+//       type: DataTypes.BIGINT,
+//       allowNull: false,
+//       primaryKey: true,
+//       autoIncrement: true,
+//     },
+//     idType: {
+//       type: DataTypes.INTEGER,
+//       allowNull: false,
+//       references: {
+//         model: 'Types',
+//         key: 'idType',
+//         deferrable: DataTypes.INITIALLY_IMMEDIATE,
+//       },
+//     },
+//     storeNumber: {
+//       type: DataTypes.INTEGER,
+//       allowNull: false,
+//       references: {
+//         model: 'Stores',
+//         key: 'storeNumber',
+//         deferrable: DataTypes.INITIALLY_IMMEDIATE,
+//       },
+//     },
+//   });
+// };

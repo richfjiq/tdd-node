@@ -7,5 +7,6 @@
   "password_size": "La contraseña debe ser al menos de 6 caracteres.",
   "password_pattern": "La contraseña debe tener al menos 1 letra mayuscula, 1 letra minuscula y 1 numero.",
   "email_inuse": "El email esta en uso.",
-  "user_create_success": "Usuario creado."
+  "user_create_success": "Usuario creado.",
+  "email_failure": "El email fallo."
 }
