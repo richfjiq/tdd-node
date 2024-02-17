@@ -268,8 +268,7 @@ describe('User registration', () => {
     await postUser();
     // const lastMail = nodemailerStub.interactsWithMail.lastMail();
     const users = await User.findAll();
-    console.log({ users });
-    console.log(users[0].dataValues);
+
     const savedUser = users[0].dataValues;
     expect(lastMail.email).toBe('user1@gmail.com');
     expect(lastMail.token).toContain(savedUser.activationToken);
@@ -399,3 +398,60 @@ describe('Internationalization', () => {
 //     },
 //   });
 // };
+
+describe('Account activation', () => {
+  it('activates the account when correct token is sent', async () => {
+    await postUser();
+    let users = await User.findAll();
+    const token = users[0].dataValues.activationToken;
+    await request(app).post('/api/1.0/users/token/' + token);
+    users = await User.findAll();
+    expect(users[0].dataValues.inactive).toBe(false);
+  });
+
+  it('activates the token from user table after successful activation', async () => {
+    await postUser();
+    let users = await User.findAll();
+    const token = users[0].dataValues.activationToken;
+    await request(app).post('/api/1.0/users/token/' + token);
+    users = await User.findAll();
+    expect(users[0].dataValues.activationToken).toBeFalsy();
+  });
+
+  it('does not activate the account when token is wrong', async () => {
+    await postUser();
+    const token = 'this -token-does-not exist';
+    await request(app).post('/api/1.0/users/token/' + token);
+    const users = await User.findAll();
+    expect(users[0].dataValues.inactive).toBe(true);
+  });
+
+  it('returns bad request when token is wrong', async () => {
+    await postUser();
+    const token = 'this -token-does-not exist';
+    const response = await request(app).post('/api/1.0/users/token/' + token);
+    expect(response.status).toBe(400);
+  });
+
+  it.each`
+    language | tokenStatus  | message
+    ${'es'}  | ${'wrong'}   | ${'Esta cuenta esta activa o el token no es válido.'}
+    ${'en'}  | ${'wrong'}   | ${'This account is either active or the token is invalid.'}
+    ${'es'}  | ${'correct'} | ${'La cuenta esta activada.'}
+    ${'en'}  | ${'correct'} | ${'Account is activated.'}
+  `(
+    'returns $message when token is $tokenStatus and language is $language',
+    async ({ language, message, tokenStatus }) => {
+      await postUser();
+      let token = 'this -token-does-not exist';
+      if (tokenStatus === 'correct') {
+        let users = await User.findAll();
+        token = users[0].dataValues.activationToken;
+      }
+      const response = await request(app)
+        .post('/api/1.0/users/token/' + token)
+        .set('Accept-Language', language);
+      expect(response.body.message).toBe(message);
+    },
+  );
+});
