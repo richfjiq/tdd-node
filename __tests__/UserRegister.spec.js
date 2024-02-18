@@ -268,7 +268,6 @@ describe('User registration', () => {
     await postUser();
     // const lastMail = nodemailerStub.interactsWithMail.lastMail();
     const users = await User.findAll();
-    console.log({ lastMail });
     const savedUser = users[0].dataValues;
     expect(lastMail.email).toBe('user1@gmail.com');
     expect(lastMail.token).toContain(savedUser.activationToken);

@@ -15,10 +15,7 @@ const sendAccountActivation = async (email, token) => {
       </div>
     `,
   });
-  console.log({ info });
-  console.log(email);
-  console.log(token);
-  console.log(nodemailer.getTestMessageUrl(info));
+
   if (process.env.NODE_ENV === 'development') {
     console.log(`ulr:${nodemailer.getTestMessageUrl(info)}`);
   }
