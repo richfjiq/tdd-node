@@ -303,6 +303,19 @@ describe('User registration', () => {
     const users = await User.findAll();
     expect(users.length).toBe(0);
   });
+
+  it('returns validation failure message in error response body when validation fails', async () => {
+    const response = await postUser(
+      {
+        username: null,
+        email: 'user1@gmail.com',
+        password: 'P4ssword',
+      },
+      { language: 'en' },
+    );
+
+    expect(response.body.message).toBe('Validation failure.');
+  });
 });
 
 describe('Internationalization', () => {
@@ -316,6 +329,7 @@ describe('Internationalization', () => {
   const email_inuse = 'El email esta en uso.';
   const user_create_success = 'Usuario creado.';
   const email_failure = 'El email fallo.';
+  const validation_failure = 'La validación fallo.';
 
   it.each`
     field         | value               | expectedMessage
@@ -365,6 +379,18 @@ describe('Internationalization', () => {
     const response = await postUser({ ...validUser }, { language: 'es' });
     // mockSendAccountActivation.mockRestore();
     expect(response.body.message).toBe(email_failure);
+  });
+  it(`returns ${validation_failure} message in error response body when validation fails`, async () => {
+    const response = await postUser(
+      {
+        username: null,
+        email: 'user1@gmail.com',
+        password: 'P4ssword',
+      },
+      { language: 'es' },
+    );
+
+    expect(response.body.message).toBe(validation_failure);
   });
 });
 
@@ -453,4 +479,42 @@ describe('Account activation', () => {
       expect(response.body.message).toBe(message);
     },
   );
+});
+
+describe('Error Model', () => {
+  it('returns path, timestamp, message and validationErrors in response when validation fails', async () => {
+    const response = await postUser({ ...validUser, username: null });
+    const body = response.body;
+    expect(Object.keys(body)).toEqual(['path', 'timestamp', 'message', 'validationErrors']);
+  });
+
+  it('returns path, timestamp and message in response when request fails other than validation error', async () => {
+    const token = 'this-token-does-not-exist';
+    const response = await request(app)
+      .post('/api/1.0/users/token/' + token)
+      .set('Accept-Language', 'en');
+    const body = response.body;
+    expect(Object.keys(body)).toEqual(['path', 'timestamp', 'message']);
+  });
+
+  it('returns path in error body', async () => {
+    const token = 'this-token-does-not-exist';
+    const response = await request(app)
+      .post('/api/1.0/users/token/' + token)
+      .set('Accept-Language', 'en');
+    const body = response.body;
+    expect(body.path).toBe('/api/1.0/users/token/' + token);
+  });
+
+  it('returns timestamps in milliseconds within 5 seconds value in error body', async () => {
+    const nowInMilliseconds = new Date().getTime();
+    const fiveSecondsLater = nowInMilliseconds + 5 * 1000;
+    const token = 'this-token-does-not-exist';
+    const response = await request(app)
+      .post('/api/1.0/users/token/' + token)
+      .set('Accept-Language', 'en');
+    const body = response.body;
+    expect(body.timestamp).toBeGreaterThan(nowInMilliseconds);
+    expect(body.timestamp).toBeLessThan(fiveSecondsLater);
+  });
 });
